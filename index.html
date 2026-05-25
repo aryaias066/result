@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARYA IAS Result Management System</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f3f7;
+            color: #2c3e50;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px 20px;
+            background: #1a365d; 
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border-bottom: 5px solid #f1c40f; 
+        }
+
+        header h1 {
+            font-size: 38px;
+            letter-spacing: 2px;
+            color: #f1c40f;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-weight: 800;
+        }
+
+        header p {
+            font-size: 14px;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            border-top: 4px solid #1a365d;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #1a365d;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+            font-size: 22px;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #34495e;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input:focus {
+            border-color: #1a365d;
+            outline: none;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 20px 0;
+            font-weight: bold;
+            color: #94a3b8;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #1a365d;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        button:hover { background: #2c5282; }
+        .search-btn { background: #27ae60; }
+        .search-btn:hover { background: #219653; }
+        .logout-btn { background: #e74c3c; margin-top: 15px; }
+        .logout-btn:hover { background: #c0392b; }
+        
+        .template-btn { background: #d35400; font-size: 13px; padding: 8px; margin-bottom: 15px; }
+        .template-btn:hover { background: #e67e22; }
+
+        .share-box {
+            margin-top: 15px;
+            padding: 12px;
+            background: #f0f7ff;
+            border: 1px dashed #2b6cb0;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .result-box {
+            margin-top: 20px;
+            padding: 25px;
+            border-radius: 8px;
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            display: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th { background-color: #f8fafc; color: #1a365d; font-weight: 700; }
+
+        .admin-sub-box {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 15px;
+        }
+
+        .preview-container {
+            margin-top: 15px;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+        }
+
+        #adminDashboard { display: none; }
+
+        .print-btn {
+            background: #f1c40f;
+            color: #1a365d;
+            margin-top: 15px;
+            text-transform: uppercase;
+        }
+        .print-btn:hover { background: #d4ac0d; }
+
+        /* --- PRINT STYLES --- */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 15mm; 
+            }
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
+            #printArea {
+                position: absolute; left: 0; top: 0; width: 100%; padding: 0;
+                background: white !important; color: black !important;
+                page-break-inside: avoid;
+            }
+            #printArea::before {
+                content: "ARYA IAS"; position: fixed; top: 35%; left: 10%;
+                font-size: 110px; font-weight: 900;
+                color: rgba(26, 54, 93, 0.04) !important; 
+                z-index: 999999 !important; transform: rotate(-30deg);
+                white-space: nowrap; letter-spacing: 6px; pointer-events: none;
+            }
+            .print-btn { display: none !important; }
+            table, th, td { border: 1px solid #000 !important; color: #000 !important; padding: 10px !important; }
+            th { background: #f2f2f2 !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>ARYA IAS RESULT MANAGEMENT SYSTEM</h1>
+        <p>📍 Shiv Nagar Colony, Near Jagat Hospital, Naka Chungi, Faizabad</p>
+        <p>📞 Mob: 8960853200, 8787023671</p>
+    </header>
+
+    <div class="grid">
+        <div class="card">
+            <h2>👨‍🏫 Admin Section</h2>
+            
+            <div id="adminLoginForm">
+                <div class="form-group"><label>Username:</label><input type="text" id="adminUser" value="ARYAIAS"></div>
+                <div class="form-group"><label>Password:</label><input type="password" id="adminPass" placeholder="Enter password"></div>
+                <button type="button" onclick="loginAdmin()">Login Dashboard</button>
+            </div>
+
+            <div id="adminDashboard">
+                <p style="color: #27ae60; font-weight: bold; margin-bottom: 15px;">✓ Welcome Administrator</p>
+                
+                <div class="admin-sub-box">
+                    <button class="template-btn" type="button" onclick="downloadTemplate()">📋 Download Excel Template</button>
+                    <label>📊 Bulk Upload Excel (.xlsx):</label>
+                    <input type="file" id="excelFile" accept=".xlsx, .xls" style="padding:5px; margin-bottom:10px;">
+                    <button type="button" style="background:#8e44ad;" onclick="uploadExcel()">Bulk Import Now</button>
+                </div>
+
+                <div class="divider">OR MANUAL ENTRY</div>
+
+                <form id="resultForm">
+                    <div class="form-group">
+                        <label>Roll Number (Strictly 5 Digits):</label>
+                        <input type="text" id="rollNo" placeholder="E.g. 10025" maxlength="5" minlength="5" required>
+                    </div>
+                    <div class="form-group"><label>Student Name:</label><input type="text" id="studentName" required></div>
+                    <div class="form-group"><label>Batch Name:</label><input type="text" id="batchName" required></div>
+                    <div class="form-group"><label>Test Number / Name:</label><input type="text" id="testNo" required></div>
+                    <div class="form-group"><label>Test Date:</label><input type="date" id="testDate" required></div>
+                    <div class="form-group"><label>Obtained Marks:</label><input type="number" id="obtainedMarks" required></div>
+                    <div class="form-group"><label>Total Marks:</label><input type="number" id="totalMarks" required></div>
+                    <button type="submit">Save Online & Generate Link</button>
+                </form>
+
+                <div id="shareBox" class="share-box">
+                    <p><strong>🔗 Student Share Link:</strong></p>
+                    <input type="text" id="generatedLink" readonly>
+                    <button style="background: #27ae60; font-size:13px; padding:5px;" onclick="copyLink()">Copy Link</button>
+                </div>
+
+                <div class="divider">ONLINE DATABASE MANAGEMENT</div>
+                <div class="admin-sub-box">
+                    <button type="button" style="background:#2980b9;" onclick="toggleDatabaseTable()">📊 View All Online Results</button>
+                    <div id="allResultsContainer" class="preview-container" style="display:none;">
+                        <table style="font-size:12px; margin:0;">
+                            <thead><tr><th>Roll</th><th>Name</th><th>Date</th><th>Test No</th><th>Marks</th><th>Action</th></tr></thead>
+                            <tbody id="allResultsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="divider">🗑️ DATA REMOVAL & CLEANING</div>
+                <div class="admin-sub-box" style="border: 1px dashed #e74c3c; background: #fff5f5;">
+                    <label style="color:#c0392b;">🎯 Remove Specific Test Record:</label>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:8px;">
+                        <input type="text" id="deleteRollInput" placeholder="Enter 5-Digit Roll" maxlength="5">
+                        <input type="date" id="deleteDateInput">
+                    </div>
+                    <button type="button" style="background:#e67e22; padding:8px; font-size:14px; margin-bottom:15px;" onclick="deleteSpecificRecord()">Delete From Cloud</button>
+                    
+                    <label style="color:#c0392b;">🚨 Wipe Out Whole Cloud Database:</label>
+                    <button type="button" style="background:#c0392b; font-size:14px; padding:10px;" onclick="clearEntireDatabase()">💥 Wipe All Online Data</button>
+                </div>
+
+                <button class="logout-btn" onclick="logoutAdmin()">Logout Admin</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🎓 Student Portal</h2>
+            <div class="form-group">
+                <label>Enter Your Roll Number (5 Digits):</label>
+                <input type="text" id="searchRoll" placeholder="e.g. 10025" maxlength="5">
+            </div>
+            <div class="form-group">
+                <label>Select Test Date:</label>
+                <input type="date" id="searchDate">
+            </div>
+            <button class="search-btn" onclick="searchResult()">View Score Card</button>
+
+            <div id="resultOutput" class="result-box">
+                <div id="printArea">
+                    <div style="text-align: center; border-bottom: 2px solid #1a365d; padding-bottom: 8px; margin-bottom: 12px;">
+                        <h2 style="border:none; margin:0; justify-content:center; color:#1a365d; font-size:36px; font-weight:900; letter-spacing:2px; text-transform:uppercase; text-align:center;">ARYA IAS</h2>
+                        <p style="font-size:11px; color:#555; text-align:center;">Shiv Nagar Colony, Near Jagat Hospital, Naka Chungi, Faizabad</p>
+                        <p style="font-size:11px; color:#555; font-weight:bold; text-align:center;">Mob: 8960853200, 8787023671</p>
+                        <div style="font-size:13px; font-weight:bold; background:#1a365d; color:white; display:inline-block; padding:4px 18px; margin-top:8px; border-radius:3px;">OFFICIAL SCORE CARD</div>
+                    </div>
+
+                    <div id="studentDetailsBlock" style="margin: 15px 0 12px 0; font-size: 14px; line-height: 1.8; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
+
+                    <table style="margin: 10px 0;">
+                        <thead>
+                            <tr><th>Evaluation Parameters</th><th>Maximum / Obtained Details</th></tr>
+                        </thead>
+                        <tbody id="marksTableBody"></tbody>
+                    </table>
+                    
+                    <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #555;">
+                        <p>Date of Generation: <span id="generationDate"></span></p>
+                        <p style="text-align: right; font-weight: bold; border-top: 1px dashed #333; padding-top: 5px; width: 160px; text-align: center;">Authorized Signatory</p>
+                    </div>
+                </div>
+                <button class="print-btn" onclick="window.print()">🖨️ Print Scorecard / Save as PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // =========================================================
+    // ⚠️ यहाँ अपना FIREBASE REALTIME DATABASE URL लिंक पेस्ट करें
+    // =========================================================
+    const firebaseConfig = {
+        databaseURL: "https://console.firebase.google.com/project/aryaiasresult/database/aryaiasresult-default-rtdb/data/~2F" 
+    };
+    
+    // Initialize Live App Connection
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    let studentDatabase = {};
+
+    // Live sync and pull all records from online database
+    database.ref('results').on('value', (snapshot) => {
+        studentDatabase = snapshot.val() || {};
+        refreshAdminTable();
+    });
+
+    // Auto-detect share link parameters on load
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const rollFromUrl = urlParams.get('roll');
+        const dateFromUrl = urlParams.get('date');
+        if (rollFromUrl && dateFromUrl) {
+            const cleanRoll = rollFromUrl.toString().trim();
+            const cleanDate = dateFromUrl.toString().trim();
+            if(cleanRoll.length === 5) {
+                document.getElementById('searchRoll').value = cleanRoll;
+                document.getElementById('searchDate').value = cleanDate;
+                // Wait small delay for initial internet handshake sync
+                setTimeout(() => { showResult(cleanRoll, cleanDate); }, 1200); 
+            }
+        }
+    };
+
+    function loginAdmin() {
+        const user = document.getElementById('adminUser').value.trim();
+        const pass = document.getElementById('adminPass').value.trim();
+        if (user === "ARYAIAS" && pass === "admin123") {
+            document.getElementById('adminLoginForm').style.display = 'none';
+            document.getElementById('adminDashboard').style.display = 'block';
+            refreshAdminTable();
+        } else { alert("❌ Galat Username ya Password!"); }
+    }
+
+    function logoutAdmin() {
+        document.getElementById('adminDashboard').style.display = 'none';
+        document.getElementById('adminLoginForm').style.display = 'block';
+        document.getElementById('shareBox').style.display = 'none';
+        document.getElementById('allResultsContainer').style.display = 'none';
+    }
+
+    function downloadTemplate() {
+        const data = [
+            ["Roll", "Name", "Batch", "TestNo", "Date", "Obtained", "Total"],
+            ["10025", "Amit Kumar", "IAS Foundation", "Test-01", "2026-05-23", 145, 200]
+        ];
+        const worksheet = XLSX.utils.aoa_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+        XLSX.writeFile(workbook, "Arya_IAS_Template.xlsx");
+    }
+
+    document.getElementById('resultForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const roll = document.getElementById('rollNo').value.trim().toString();
+        const name = document.getElementById('studentName').value.trim();
+        const batch = document.getElementById('batchName').value.trim();
+        const testNo = document.getElementById('testNo').value.trim();
+        const testDate = document.getElementById('testDate').value.toString().trim();
+        const obtained = parseInt(document.getElementById('obtainedMarks').value);
+        const total = parseInt(document.getElementById('totalMarks').value);
+
+        if (roll.length !== 5) { alert("⚠️ Error: Roll Number strictly 5 digits ka hona chahiye."); return; }
+        if (!testDate) { alert("⚠️ Error: Test Date select karein."); return; }
+        if (obtained > total) { alert("Obtained marks Total marks se zyada nahi ho sakte!"); return; }
+
+        saveToDatabase(roll, name, batch, testNo, testDate, obtained, total);
+        
+        const baseUrl = window.location.href.split('?')[0];
+        document.getElementById('generatedLink').value = `${baseUrl}?roll=${roll}&date=${testDate}`;
+        document.getElementById('shareBox').style.display = 'block';
+
+        alert(`🎉 Successfully Saved Online for Roll: ${roll}`);
+        document.getElementById('resultForm').reset();
+    });
+
+    function uploadExcel() {
+        const fileInput = document.getElementById('excelFile');
+        if (!fileInput.files.length) { alert("Kripya ek Excel file select karein!"); return; }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                let count = 0;
+                jsonData.forEach(row => {
+                    let roll = (row.Roll ?? row.roll ?? row['Roll Number'] ?? '').toString().trim();
+                    let name = (row.Name ?? row.name ?? row['Student Name'] ?? '').toString().trim();
+                    let batch = (row.Batch ?? row.batch ?? row['Batch Name'] ?? '').toString().trim();
+                    let testNo = (row.TestNo ?? row.testNo ?? row['Test Number'] ?? '').toString().trim();
+                    let testDate = (row.Date ?? row.date ?? row['Test Date'] ?? '').toString().trim();
+                    let obtained = parseInt(row.Obtained ?? row.obtained ?? row['Obtained Marks']);
+                    let total = parseInt(row.Total ?? row.total ?? row['Total Marks']);
+
+                    if(typeof row.Date === 'number' || typeof row.date === 'number' || typeof row['Test Date'] === 'number') {
+                        let rawDateNum = row.Date ?? row.date ?? row['Test Date'];
+                        const date_info = new Date(Math.floor(rawDateNum - 25569) * 86400 * 1000);
+                        testDate = date_info.toISOString().split('T')[0].toString().trim();
+                    }
+
+                    if (roll.length === 5 && name !== "" && testDate !== "" && !isNaN(obtained) && !isNaN(total)) {
+                        saveToDatabase(roll, name, batch, testNo, testDate, obtained, total);
+                        count++;
+                    }
+                });
+
+                alert(`🚀 Sync Completed! Total ${count} records uploaded directly to cloud server.`);
+                fileInput.value = '';
+            } catch(err) { alert("Verification failed: " + err.message); }
+        };
+        reader.readAsArrayBuffer(fileInput.files[0]);
+    }
+
+    function saveToDatabase(roll, name, batch, testNo, testDate, obtained, total) {
+        const cleanRoll = roll.toString().trim();
+        const cleanDate = testDate.toString().trim();
+        const uniqueKey = `${cleanRoll}_${cleanDate}`;
+        
+        database.ref('results/' + uniqueKey).set({
+            roll: cleanRoll, name, batch, testNo, testDate: cleanDate, obtained, total
+        });
+    }
+
+    function toggleDatabaseTable() {
+        const box = document.getElementById('allResultsContainer');
+        box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function refreshAdminTable() {
+        let html = "";
+        Object.keys(studentDatabase).forEach(key => {
+            const s = studentDatabase[key];
+            html += `<tr>
+                <td><strong>${s.roll}</strong></td>
+                <td>${s.name}</td>
+                <td>${s.testDate}</td>
+                <td>${s.testNo}</td>
+                <td>${s.obtained}/${s.total}</td>
+                <td><button style="background:#e74c3c; font-size:11px; padding:3px 6px; width:auto;" onclick="deleteDirectKey('${key}')">Delete</button></td>
+            </tr>`;
+        });
+        document.getElementById('allResultsBody').innerHTML = html || "<tr><td colspan='6' style='text-align:center;'>No Live Data in Online Cloud Server</td></tr>";
+    }
+
+    function deleteDirectKey(key) {
+        if(confirm(`Kya aap is record ko Online Database se delete karna chahte hain?`)) {
+            database.ref('results/' + key).remove();
+        }
+    }
+
+    function deleteSpecificRecord() {
+        const roll = document.getElementById('deleteRollInput').value.trim();
+        const date = document.getElementById('deleteDateInput').value.toString().trim();
+        const key = `${roll}_${date}`;
+        if(studentDatabase[key]) {
+            if(confirm(`Delete Roll: ${roll} Date: ${date} permanently from Cloud Database?`)) {
+                database.ref('results/' + key).remove();
+                document.getElementById('deleteRollInput').value = '';
+                document.getElementById('deleteDateInput').value = '';
+                alert("🎯 Deleted successfully.");
+            }
+        } else { alert("❌ Error: Online cloud database me is combo ka koi record nahi mila!"); }
+    }
+
+    function clearEntireDatabase() {
+        if(confirm("🚨 WARNING: Kya aap ssch me POORA CLOUD DATABASE saaf karna chahte hain? Everything will be deleted permanently.")) {
+            const reConfirm = prompt("Confirm karne ke liye niche 'DELETE ALL' likhein:");
+            if(reConfirm === "DELETE ALL" || reConfirm === "delete all") {
+                database.ref('results').remove();
+                alert("💥 Cleaned! Online server zero data ho gaya h.");
+            } else { alert("Wrong verification typed."); }
+        }
+    }
+
+    function copyLink() {
+        const linkInput = document.getElementById('generatedLink');
+        linkInput.select();
+        navigator.clipboard.writeText(linkInput.value);
+        alert("📋 Shareable Link copy ho gaya!");
+    }
+
+    function searchResult() {
+        const searchRoll = document.getElementById('searchRoll').value.trim();
+        const searchDate = document.getElementById('searchDate').value.toString().trim();
+        
+        if (!searchRoll || searchRoll.length !== 5 || !searchDate) {
+            alert("⚠️ Valid 5-Digit Roll Number aur Test Date select karein!"); 
+            return;
+        }
+        showResult(searchRoll, searchDate);
+    }
+
+    function showResult(roll, date) {
+        const resultOutput = document.getElementById('resultOutput');
+        const cleanRoll = roll.toString().trim();
+        const cleanDate = date.toString().trim();
+        const targetKey = `${cleanRoll}_${cleanDate}`;
+
+        if (studentDatabase[targetKey]) {
+            const student = studentDatabase[targetKey];
+
+            let formattedDate = student.testDate;
+            if(student.testDate && student.testDate.includes('-')) {
+                const d = new Date(student.testDate);
+                if(!isNaN(d.getTime())) formattedDate = d.toLocaleDateString('en-GB'); 
+            }
+
+            document.getElementById('studentDetailsBlock').innerHTML = `
+                <p><strong>Student Name:</strong> ${student.name}</p>
+                <p><strong>Roll Number:</strong> ${student.roll}</p>
+                <p><strong>Batch:</strong> ${student.batch || 'N/A'}</p>
+                <p><strong>Test Name/No:</strong> ${student.testNo || 'N/A'}</p>
+                <p><strong>Test Date:</strong> ${formattedDate || 'N/A'}</p>
+            `;
+
+            document.getElementById('marksTableBody').innerHTML = `
+                <tr><td>Obtained Marks Score</td><td><strong style="color:#1a365d; font-size:16px;">${student.obtained}</strong></td></tr>
+                <tr><td>Maximum Total Marks</td><td><strong>${student.total}</strong></td></tr>
+            `;
+
+            document.getElementById('generationDate').innerText = new Date().toLocaleDateString('en-GB') + " " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            resultOutput.style.display = 'block';
+        } else {
+            resultOutput.style.display = 'block';
+            resultOutput.innerHTML = `<p style="color:#721c24; background:#f8d7da; padding:10px; border-radius:4px;">⚠️ Roll Number <strong>${cleanRoll}</strong> का तारीख <strong>${cleanDate}</strong> को कोई ऑनलाइन टेस्ट रिकॉर्ड नहीं मिला।</p>`;
+        }
+    }
+</script>
+</body>
+</html>
