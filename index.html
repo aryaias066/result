@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ARYA IAS Result Management System</title>
+    <title>ARYA IAS Result & PDF Management System</title>
+    <!-- Firebase core SDKs (v8 Legacy Stable) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <!-- SheetJS for Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         * {
@@ -68,6 +71,7 @@
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             border-top: 4px solid #1a365d;
+            margin-bottom: 20px;
         }
 
         h2 {
@@ -108,6 +112,8 @@
             margin: 20px 0;
             font-weight: bold;
             color: #94a3b8;
+            font-size: 12px;
+            letter-spacing: 1px;
         }
 
         button {
@@ -126,6 +132,8 @@
         button:hover { background: #2c5282; }
         .search-btn { background: #27ae60; }
         .search-btn:hover { background: #219653; }
+        .pdf-download-btn { background: #e67e22; }
+        .pdf-download-btn:hover { background: #d35400; }
         .logout-btn { background: #e74c3c; margin-top: 15px; }
         .logout-btn:hover { background: #c0392b; }
         
@@ -177,7 +185,7 @@
 
         .preview-container {
             margin-top: 15px;
-            max-height: 250px;
+            max-height: 350px;
             overflow-y: auto;
             border: 1px solid #e2e8f0;
         }
@@ -192,29 +200,61 @@
         }
         .print-btn:hover { background: #d4ac0d; }
 
-        /* --- PRINT STYLES --- */
+        .print-list-btn {
+            background: #34495e;
+            color: white;
+            padding: 10px;
+            font-size: 13px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            width: 100%;
+        }
+        .print-list-btn:hover { background: #2c3e50; }
+
+        .pdf-btn {
+            display: block;
+            text-align: center;
+            background: #e67e22;
+            color: white;
+            text-decoration: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-top: 15px;
+            font-size: 15px;
+        }
+        .pdf-btn:hover { background: #d35400; }
+
+        #errorMessageBlock, #pdfErrorBlock {
+            margin-top: 15px;
+            display: none;
+        }
+
+        .search-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .table-search-box {
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            padding: 10px;
+            font-size: 13px;
+            border-radius: 5px;
+            width: 100%;
+        }
+
+        /* --- PRINT CSS CONFIG --- */
         @media print {
-            @page {
-                size: A4 portrait;
-                margin: 15mm; 
+            body { background: white !important; padding: 0 !important; color: black !important; }
+            .container, header, .grid, .card, #adminDashboard, .admin-sub-box, form, button, .divider, .table-search-box, .print-list-btn, #errorMessageBlock, #pdfErrorBlock, .logout-btn {
+                display: none !important;
             }
-            body * { visibility: hidden; }
-            #printArea, #printArea * { visibility: visible; }
-            #printArea {
-                position: absolute; left: 0; top: 0; width: 100%; padding: 0;
-                background: white !important; color: black !important;
-                page-break-inside: avoid;
-            }
-            #printArea::before {
-                content: "ARYA IAS"; position: fixed; top: 35%; left: 10%;
-                font-size: 110px; font-weight: 900;
-                color: rgba(26, 54, 93, 0.04) !important; 
-                z-index: 999999 !important; transform: rotate(-30deg);
-                white-space: nowrap; letter-spacing: 6px; pointer-events: none;
-            }
-            .print-btn { display: none !important; }
-            table, th, td { border: 1px solid #000 !important; color: #000 !important; padding: 10px !important; }
-            th { background: #f2f2f2 !important; }
+            #printArea, #printArea * { visibility: visible !important; display: block !important; }
+            #printArea { position: absolute; left: 0; top: 0; width: 100%; }
         }
     </style>
 </head>
@@ -222,24 +262,44 @@
 
 <div class="container">
     <header>
-        <h1>ARYA IAS RESULT MANAGEMENT SYSTEM</h1>
+        <h1>ARYA IAS RESULT & MATERIAL MANAGEMENT</h1>
         <p>📍 Shiv Nagar Colony, Near Jagat Hospital, Naka Chungi, Faizabad, Uttar Pradesh, India</p>
         <p>📞 Mob: 8960853200, 8787023671</p>
     </header>
 
     <div class="grid">
+        <!-- ADMIN AREA -->
         <div class="card">
             <h2>👨‍🏫 Admin Section</h2>
             
             <div id="adminLoginForm">
-                <div class="form-group"><label>Username:</label><input type="text" id="adminUser" value="ARYAIAS"></div>
-                <div class="form-group"><label>Password:</label><input type="password" id="adminPass" placeholder="Enter password"></div>
+                <!-- MODIFIED: Placeholder added and default ARYAIAS text cleared -->
+                <div class="form-group">
+                    <label>Username:</label>
+                    <input type="text" id="adminUser" placeholder="Enter Username">
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="adminPass" placeholder="Enter password">
+                </div>
                 <button type="button" onclick="loginAdmin()">Login Dashboard</button>
             </div>
 
             <div id="adminDashboard">
                 <p style="color: #27ae60; font-weight: bold; margin-bottom: 15px;">✓ Welcome Administrator</p>
                 
+                <!-- Direct Firebase PDF Upload Panel -->
+                <div class="admin-sub-box" style="border: 2px solid #e67e22; background: #fffaf5;">
+                    <label style="color:#d35400; font-weight:bold;">📤 Upload PDF Directly to Firebase:</label>
+                    <input type="file" id="pdfFileInput" accept=".pdf" style="padding:5px; margin-bottom:10px;">
+                    <div class="form-group">
+                        <label>Material Unique Code (Type your own OR leave blank for Auto):</label>
+                        <input type="text" id="generatedPdfCode" placeholder="E.g. GEOG01 (Max 12 Chars)" maxlength="12" style="text-transform: uppercase; font-weight: bold; color: #d35400;">
+                    </div>
+                    <button type="button" style="background:#e67e22;" onclick="uploadPdfOnly()">Upload PDF to Cloud</button>
+                </div>
+
+                <div class="divider">OR BULK EXCEL UPLOAD</div>
                 <div class="admin-sub-box">
                     <button class="template-btn" type="button" onclick="downloadTemplate()">📋 Download Excel Template</button>
                     <label>📊 Bulk Upload Excel (.xlsx):</label>
@@ -247,11 +307,10 @@
                     <button type="button" style="background:#8e44ad;" onclick="uploadExcel()">Bulk Import Now</button>
                 </div>
 
-                <div class="divider">OR MANUAL ENTRY</div>
-
+                <div class="divider">OR MANUAL RESULT ENTRY</div>
                 <form id="resultForm">
                     <div class="form-group">
-                        <label>Roll Number (Strictly 5 Digits):</label>
+                        <label>Roll Number (5 Digits):</label>
                         <input type="text" id="rollNo" placeholder="E.g. 10025" maxlength="5" minlength="5" required>
                     </div>
                     <div class="form-group"><label>Student Name:</label><input type="text" id="studentName" required></div>
@@ -260,78 +319,138 @@
                     <div class="form-group"><label>Test Date:</label><input type="date" id="testDate" required></div>
                     <div class="form-group"><label>Obtained Marks:</label><input type="number" id="obtainedMarks" required></div>
                     <div class="form-group"><label>Total Marks:</label><input type="number" id="totalMarks" required></div>
+                    <div class="form-group">
+                        <label>Link Existing PDF Unique Code (Optional):</label>
+                        <input type="text" id="resultPdfCode" placeholder="E.g. AX59R" style="text-transform: uppercase;">
+                    </div>
                     <button type="submit">Save Online & Generate Link</button>
                 </form>
 
                 <div id="shareBox" class="share-box">
                     <p><strong>🔗 Student Share Link:</strong></p>
-                    <input type="text" id="generatedLink" readonly>
-                    <button style="background: #27ae60; font-size:13px; padding:5px;" onclick="copyLink()">Copy Link</button>
+                    <input type="text" id="generatedLink" readonly style="margin-bottom: 8px;">
+                    <button style="background: #27ae60; font-size:13px; padding:8px;" onclick="copyLink()">Copy Link</button>
                 </div>
 
-                <div class="divider">ONLINE DATABASE MANAGEMENT</div>
+                <div class="divider">ONLINE DATA MANAGEMENT</div>
+                
+                <!-- Student Results Table Container -->
                 <div class="admin-sub-box">
-                    <button type="button" style="background:#2980b9;" onclick="toggleDatabaseTable()">📊 View All Online Results</button>
-                    <div id="allResultsContainer" class="preview-container" style="display:none;">
-                        <table style="font-size:12px; margin:0;">
-                            <thead><tr><th>Roll</th><th>Name</th><th>Date</th><th>Test No</th><th>Marks</th><th>Action</th></tr></thead>
-                            <tbody id="allResultsBody"></tbody>
-                        </table>
+                    <button type="button" style="background:#2980b9; margin-bottom: 10px;" onclick="toggleDatabaseTable()">📊 View All Online Results</button>
+                    
+                    <div id="allResultsContainer" style="display:none;">
+                        <div class="search-grid">
+                            <input type="text" id="resultSearchInput" onkeyup="filterAdminTable()" class="table-search-box" placeholder="🔍 Name or Roll Number...">
+                            <input type="text" id="testSearchInput" onkeyup="filterAdminTable()" class="table-search-box" placeholder="📝 Test Name/Number...">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <label style="font-size: 12px;">Filter By Test Date:</label>
+                            <input type="date" id="dateSearchInput" onchange="filterAdminTable()">
+                        </div>
+                        <button type="button" class="print-list-btn" onclick="printTableDirectly('resultsManagementTable', 'ARYA IAS - OFFICIAL RESULTS LIST')">🖨️ Print Whole Result List</button>
+                        
+                        <div class="preview-container">
+                            <table style="font-size:12px; margin:0;" id="resultsManagementTable">
+                                <thead>
+                                    <tr>
+                                        <th>S.No.</th>
+                                        <th>Roll</th>
+                                        <th>Name</th>
+                                        <th>Date</th>
+                                        <th>Test No</th>
+                                        <th>Obtained</th>
+                                        <th>Total</th>
+                                        <th>Code</th>
+                                        <th class="no-print">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allResultsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Cloud PDF Management Section -->
+                    <button type="button" style="background:#138d75;" onclick="togglePdfTable()">📚 View & Delete Cloud PDFs</button>
+                    <div id="allPdfsContainer" style="display:none; margin-top: 10px;">
+                        <input type="text" id="pdfSearchInput" onkeyup="filterPdfTable()" class="table-search-box" placeholder="🔍 Search PDF Code or File Name..." style="margin-bottom: 10px;">
+                        <button type="button" class="print-list-btn" onclick="printTableDirectly('pdfManagementTable', 'ARYA IAS - UPLOADED PDF MATERIALS LIST')">🖨️ Print Whole PDF List</button>
+                        
+                        <div class="preview-container">
+                            <table style="font-size:12px; margin:0;" id="pdfManagementTable">
+                                <thead>
+                                    <tr>
+                                        <th>S.No.</th>
+                                        <th>PDF Code</th>
+                                        <th>File Name</th>
+                                        <th class="no-print">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allPdfsBody"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                <div class="divider">🗑️ DATA REMOVAL & CLEANING</div>
-                <div class="admin-sub-box" style="border: 1px dashed #e74c3c; background: #fff5f5;">
-                    <label style="color:#c0392b;">🎯 Remove Specific Test Record:</label>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:8px;">
-                        <input type="text" id="deleteRollInput" placeholder="Enter 5-Digit Roll" maxlength="5">
-                        <input type="date" id="deleteDateInput">
+                <!-- SECURITY/PASSWORD SETTINGS BOX -->
+                <div class="divider">🔐 SECURITY SETTINGS</div>
+                <div class="admin-sub-box" style="background: #f4f6f7; border: 1px solid #bdc3c7;">
+                    <label style="color:#2c3e50; font-weight: bold;">Change Admin Password:</label>
+                    <div class="form-group" style="margin-top: 10px;">
+                        <input type="password" id="newAdminPass" placeholder="Enter New Password">
                     </div>
-                    <button type="button" style="background:#e67e22; padding:8px; font-size:14px; margin-bottom:15px;" onclick="deleteSpecificRecord()">Delete From Cloud</button>
-                    
-                    <label style="color:#c0392b;">🚨 Wipe Out Whole Cloud Database:</label>
-                    <button type="button" style="background:#c0392b; font-size:14px; padding:10px;" onclick="clearEntireDatabase()">💥 Wipe All Online Data</button>
+                    <button type="button" style="background:#2c3e50; padding:8px; font-size:14px;" onclick="changeAdminPassword()">Update Password</button>
                 </div>
 
                 <button class="logout-btn" onclick="logoutAdmin()">Logout Admin</button>
             </div>
         </div>
 
-        <div class="card">
-            <h2>🎓 Student Portal</h2>
-            <div class="form-group">
-                <label>Enter Your Roll Number (5 Digits):</label>
-                <input type="text" id="searchRoll" placeholder="e.g. 10025" maxlength="5">
+        <!-- STUDENT AREA -->
+        <div class="grid-right">
+            <!-- Scorecard Search -->
+            <div class="card">
+                <h2>🎓 Student Portal - View Result</h2>
+                <div class="form-group">
+                    <label>Enter Your Roll Number (5 Digits):</label>
+                    <input type="text" id="searchRoll" placeholder="e.g. 10025" maxlength="5">
+                </div>
+                <div class="form-group">
+                    <label>Select Test Date:</label>
+                    <input type="date" id="searchDate">
+                </div>
+                <button class="search-btn" onclick="searchResult()">View Score Card</button>
+                <div id="errorMessageBlock"></div>
             </div>
-            <div class="form-group">
-                <label>Select Test Date:</label>
-                <input type="date" id="searchDate">
-            </div>
-            <button class="search-btn" onclick="searchResult()">View Score Card</button>
 
+            <!-- PDF Quick Download Portal via Unique Code -->
+            <div class="card" style="border-top: 4px solid #e67e22;">
+                <h2>📚 Material Download Portal</h2>
+                <div class="form-group">
+                    <label>Enter Unique PDF Code:</label>
+                    <input type="text" id="pdfUniqueCodeInput" placeholder="E.g. AX59R" style="text-transform: uppercase; font-weight: bold; text-align: center; font-size: 18px; letter-spacing: 2px;">
+                </div>
+                <button class="pdf-download-btn" onclick="downloadPdfViaCode()">🚀 Download PDF Document</button>
+                <div id="pdfErrorBlock"></div>
+            </div>
+
+            <!-- Scorecard output area -->
             <div id="resultOutput" class="result-box">
                 <div id="printArea">
                     <div style="text-align: center; border-bottom: 2px solid #1a365d; padding-bottom: 8px; margin-bottom: 12px;">
                         <h2 style="border:none; margin:0; justify-content:center; color:#1a365d; font-size:36px; font-weight:900; letter-spacing:2px; text-transform:uppercase; text-align:center;">ARYA IAS</h2>
-                        <p style="font-size:11px; color:#555; text-align:center;">Shiv Nagar Colony, Near Jagat Hospital, Naka Chungi, Faizabad, Uttar Pradesh, India</p>
-                        <p style="font-size:11px; color:#555; font-weight:bold; text-align:center;">Mob: 8960853200, 8787023671</p>
                         <div style="font-size:13px; font-weight:bold; background:#1a365d; color:white; display:inline-block; padding:4px 18px; margin-top:8px; border-radius:3px;">OFFICIAL SCORE CARD</div>
                     </div>
-
                     <div id="studentDetailsBlock" style="margin: 15px 0 12px 0; font-size: 14px; line-height: 1.8; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"></div>
-
                     <table style="margin: 10px 0;">
-                        <thead>
-                            <tr><th>Evaluation Parameters</th><th>Maximum / Obtained Details</th></tr>
-                        </thead>
+                        <thead><tr><th>Evaluation Parameters</th><th>Maximum / Obtained Details</th></tr></thead>
                         <tbody id="marksTableBody"></tbody>
                     </table>
-                    
                     <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #555;">
                         <p>Date of Generation: <span id="generationDate"></span></p>
                         <p style="text-align: right; font-weight: bold; border-top: 1px dashed #333; padding-top: 5px; width: 160px; text-align: center;">Authorized Signatory</p>
                     </div>
                 </div>
+                <div id="pdfDownloadArea"></div>
                 <button class="print-btn" onclick="window.print()">🖨️ Print Scorecard / Save as PDF</button>
             </div>
         </div>
@@ -339,69 +458,166 @@
 </div>
 
 <script>
-    // =========================================================
-    // ⚠️ यहाँ अपना FIREBASE REALTIME DATABASE URL लिंक पेस्ट करें
-    // =========================================================
+    // =======================================================================
+    // ⚠️ Firebase Asset Configurations
+    // =======================================================================
     const firebaseConfig = {
-        databaseURL: "https://aryaiasresult-default-rtdb.firebaseio.com/" 
+        databaseURL: "https://aryaiasresult-default-rtdb.firebaseio.com/",
+        storageBucket: "aryaiasresult.appspot.com" 
     };
+    // =======================================================================
     
-    // Global variable defined before execution initialization
-    var database;
+    var database, storage;
     let studentDatabase = {};
+    let pdfDatabase = {}; 
+    let currentAdminPassword = "224001"; // Default cloud fallback
 
-    // Safe Initialization Setup Block
     try {
         firebase.initializeApp(firebaseConfig);
         database = firebase.database();
+        storage = firebase.storage();
         
-        // Setup live sync listener
         database.ref('results').on('value', (snapshot) => {
             studentDatabase = snapshot.val() || {};
             refreshAdminTable();
         });
-    } catch (err) {
-        console.error("Firebase Connection Error: ", err.message);
-    }
 
-    // Auto-detect share link parameters on load
-    window.onload = function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const rollFromUrl = urlParams.get('roll');
-        const dateFromUrl = urlParams.get('date');
-        if (rollFromUrl && dateFromUrl) {
-            const cleanRoll = rollFromUrl.toString().trim();
-            const cleanDate = dateFromUrl.toString().trim();
-            if(cleanRoll.length === 5) {
-                document.getElementById('searchRoll').value = cleanRoll;
-                document.getElementById('searchDate').value = cleanDate;
-                // Wait for initial internet connection sync handshake
-                setTimeout(() => { showResult(cleanRoll, cleanDate); }, 1500); 
+        database.ref('sharedPdf').on('value', (snapshot) => {
+            pdfDatabase = snapshot.val() || {};
+            refreshPdfTable();
+        });
+
+        database.ref('adminSettings/password').on('value', (snapshot) => {
+            if (snapshot.exists() && snapshot.val() !== null) {
+                currentAdminPassword = snapshot.val().toString().trim();
+            } else {
+                database.ref('adminSettings/password').set("224001");
             }
-        }
-    };
+        });
+    } catch (err) { console.error("Firebase Error: ", err.message); }
 
+    // MODIFIED: Login validation matches username "555656" instead of "ARYAIAS"
     function loginAdmin() {
         const user = document.getElementById('adminUser').value.trim();
         const pass = document.getElementById('adminPass').value.trim();
-        if (user === "ARYAIAS" && pass === "admin123") {
+        
+        if (user === "555656" && pass.toString() === currentAdminPassword.toString()) {
             document.getElementById('adminLoginForm').style.display = 'none';
             document.getElementById('adminDashboard').style.display = 'block';
-            refreshAdminTable();
-        } else { alert("❌ Galat Username ya Password!"); }
+        } else { 
+            alert("❌ Galat Username ya Password! Kripya sahi details dalein."); 
+        }
     }
 
+    function changeAdminPassword() {
+        if (!database) { alert("⚠️ Cloud Engine Offline!"); return; }
+        const newPass = document.getElementById('newAdminPass').value.trim();
+        
+        if (newPass.length < 4) {
+            alert("⚠️ Warning: Password kam se kam 4 अक्षर का होना चाहिए!");
+            return;
+        }
+
+        if (confirm("Kya aap such me Password badalna chahte hain?")) {
+            database.ref('adminSettings/password').set(newPass.toString())
+                .then(() => {
+                    alert("🎯 System Update: Naya Password cloud server par successfully save ho gaya h!");
+                    document.getElementById('newAdminPass').value = '';
+                })
+                .catch((err) => {
+                    alert("❌ Error: " + err.message);
+                });
+        }
+    }
+
+    function generateAutoPdfCode() {
+        const chars = "ABCDEFGHJKLMNOPQRSTUVWXYZ23456789";
+        let code = "";
+        for(let i=0; i<5; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+    }
+
+    function uploadPdfOnly() {
+        const fileInput = document.getElementById('pdfFileInput');
+        let customCode = document.getElementById('generatedPdfCode').value.trim().toUpperCase();
+        
+        if(!fileInput.files.length) { alert("Please select a PDF file first!"); return; }
+        if(!customCode) customCode = generateAutoPdfCode();
+
+        customCode = customCode.replace(/[^A-Z0-9]/g, '');
+        if(customCode.length < 2) { alert("Code must be at least 2 alphanumeric characters!"); return; }
+
+        const file = fileInput.files[0];
+        const storageRef = storage.ref('materials/' + customCode + '.pdf');
+        
+        alert(`Uploading "${file.name}" under Unique Code [${customCode}]. Please wait...`);
+        
+        storageRef.put(file).then(snapshot => {
+            snapshot.ref.getDownloadURL().then(url => {
+                database.ref('sharedPdf/' + customCode).set({
+                    code: customCode,
+                    url: url,
+                    filename: file.name,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                }).then(() => {
+                    alert(`🎉 Success! PDF Linked onto Cloud Server.\nUnique Code is: ${customCode}`);
+                    fileInput.value = '';
+                    document.getElementById('generatedPdfCode').value = '';
+                });
+            });
+        }).catch(err => alert("Upload failed: " + err.message));
+    }
+
+    function deletePdfDocument(code) {
+        if(!confirm(`Are you absolutely sure you want to delete PDF with Code [${code}]?`)) return;
+
+        const fileRef = storage.ref('materials/' + code + '.pdf');
+        fileRef.delete().then(() => {
+            database.ref('sharedPdf/' + code).remove().then(() => {
+                alert(`🎯 PDF [${code}] completely wiped from cloud repositories!`);
+            });
+        }).catch(err => {
+            if(err.code === 'storage/object-not-found') {
+                database.ref('sharedPdf/' + code).remove().then(() => {
+                    alert(`🎯 Database trace cleared for [${code}].`);
+                });
+            } else {
+                alert("Error during storage wipe: " + err.message);
+            }
+        });
+    }
+
+    function downloadPdfViaCode() {
+        const code = document.getElementById('pdfUniqueCodeInput').value.trim().toUpperCase();
+        const errBlock = document.getElementById('pdfErrorBlock');
+        errBlock.style.display = 'none';
+
+        if(!code) { alert("Please enter a structured document unique code."); return; }
+
+        database.ref('sharedPdf/' + code).once('value').then(snapshot => {
+            if(snapshot.exists()) {
+                window.open(snapshot.val().url, '_blank');
+            } else {
+                errBlock.innerHTML = `<p style="color:#721c24; background:#f8d7da; padding:10px; border-radius:4px;">❌ Invalid Code! No document found matching "${code}".</p>`;
+                errBlock.style.display = 'block';
+            }
+        });
+    }
+
+    // MODIFIED: Clearing form inputs safely on logout
     function logoutAdmin() {
         document.getElementById('adminDashboard').style.display = 'none';
         document.getElementById('adminLoginForm').style.display = 'block';
-        document.getElementById('shareBox').style.display = 'none';
-        document.getElementById('allResultsContainer').style.display = 'none';
+        document.getElementById('adminUser').value = '';
+        document.getElementById('adminPass').value = '';
     }
 
     function downloadTemplate() {
         const data = [
-            ["Roll", "Name", "Batch", "TestNo", "Date", "Obtained", "Total"],
-            ["10025", "Amit Kumar", "IAS Foundation", "Test-01", "2026-05-23", 145, 200]
+            ["Roll", "Name", "Batch", "TestNo", "Date", "Obtained", "Total", "PdfCode"],
+            ["10025", "Amit Kumar", "IAS Foundation", "Test-01", "2026-05-23", 145, 200, "AX59R"]
         ];
         const worksheet = XLSX.utils.aoa_to_sheet(data);
         const workbook = XLSX.utils.book_new();
@@ -411,33 +627,32 @@
 
     document.getElementById('resultForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        const roll = document.getElementById('rollNo').value.trim().toString();
+        const roll = document.getElementById('rollNo').value.trim();
         const name = document.getElementById('studentName').value.trim();
         const batch = document.getElementById('batchName').value.trim();
         const testNo = document.getElementById('testNo').value.trim();
-        const testDate = document.getElementById('testDate').value.toString().trim();
+        const testDate = document.getElementById('testDate').value.trim();
         const obtained = parseInt(document.getElementById('obtainedMarks').value);
         const total = parseInt(document.getElementById('totalMarks').value);
+        const pdfCode = document.getElementById('resultPdfCode').value.trim().toUpperCase();
 
-        if (roll.length !== 5) { alert("⚠️ Error: Roll Number strictly 5 digits ka hona chahiye."); return; }
-        if (!testDate) { alert("⚠️ Error: Test Date select karein."); return; }
-        if (obtained > total) { alert("Obtained marks Total marks se zyada nahi ho sakte!"); return; }
+        if (obtained > total) { alert("Obtained cannot exceed total marks."); return; }
 
-        saveToDatabase(roll, name, batch, testNo, testDate, obtained, total);
-        
-        const baseUrl = window.location.href.split('?')[0];
-        document.getElementById('generatedLink').value = `${baseUrl}?roll=${roll}&date=${testDate}`;
-        document.getElementById('shareBox').style.display = 'block';
-
-        alert(`🎉 Successfully Saved Online for Roll: ${roll}`);
-        document.getElementById('resultForm').reset();
+        const uniqueKey = `${roll}_${testDate}`;
+        database.ref('results/' + uniqueKey).set({
+            roll, name, batch, testNo, testDate, obtained, total, pdfCode: pdfCode || ""
+        }).then(() => {
+            const baseUrl = window.location.href.split('?')[0];
+            document.getElementById('generatedLink').value = `${baseUrl}?roll=${roll}&date=${testDate}`;
+            document.getElementById('shareBox').style.display = 'block';
+            alert("🎉 Record Saved successfully!");
+            document.getElementById('resultForm').reset();
+        });
     });
 
     function uploadExcel() {
-        if (!database) { alert("⚠️ Database not connected yet! Please check your network or Firebase link."); return; }
-        
         const fileInput = document.getElementById('excelFile');
-        if (!fileInput.files.length) { alert("Kripya ek Excel file select karein!"); return; }
+        if (!fileInput.files.length) { alert("Select Excel file!"); return; }
 
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -447,152 +662,226 @@
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-                let count = 0;
                 jsonData.forEach(row => {
-                    let roll = (row.Roll ?? row.roll ?? row['Roll Number'] ?? '').toString().trim();
-                    let name = (row.Name ?? row.name ?? row['Student Name'] ?? '').toString().trim();
-                    let batch = (row.Batch ?? row.batch ?? row['Batch Name'] ?? '').toString().trim();
-                    let testNo = (row.TestNo ?? row.testNo ?? row['Test Number'] ?? '').toString().trim();
-                    let testDate = (row.Date ?? row.date ?? row['Test Date'] ?? '').toString().trim();
-                    let obtained = parseInt(row.Obtained ?? row.obtained ?? row['Obtained Marks']);
-                    let total = parseInt(row.Total ?? row.total ?? row['Total Marks']);
+                    let roll = (row.Roll ?? row.roll ?? '').toString().trim();
+                    let name = (row.Name ?? row.name ?? '').toString().trim();
+                    let batch = (row.Batch ?? row.batch ?? '').toString().trim();
+                    let testNo = (row.TestNo ?? row.testNo ?? '').toString().trim();
+                    let testDate = (row.Date ?? row.date ?? '').toString().trim();
+                    let obtained = parseInt(row.Obtained ?? row.obtained);
+                    let total = parseInt(row.Total ?? row.total);
+                    let pdfCode = (row.PdfCode ?? row.pdfcode ?? '').toString().trim().toUpperCase();
 
-                    if(typeof row.Date === 'number' || typeof row.date === 'number' || typeof row['Test Date'] === 'number') {
-                        let rawDateNum = row.Date ?? row.date ?? row['Test Date'];
-                        const date_info = new Date(Math.floor(rawDateNum - 25569) * 86400 * 1000);
-                        testDate = date_info.toISOString().split('T')[0].toString().trim();
+                    if(typeof row.Date === 'number') {
+                        const d_info = new Date(Math.floor(row.Date - 25569) * 86400 * 1000);
+                        testDate = d_info.toISOString().split('T')[0];
                     }
 
-                    if (roll.length === 5 && name !== "" && testDate !== "" && !isNaN(obtained) && !isNaN(total)) {
-                        saveToDatabase(roll, name, batch, testNo, testDate, obtained, total);
-                        count++;
+                    if (roll.length === 5 && name !== "") {
+                        database.ref('results/' + `${roll}_${testDate}`).set({
+                            roll, name, batch, testNo, testDate, obtained, total, pdfCode
+                        });
                     }
                 });
-
-                alert(`🚀 Sync Completed! Total ${count} records uploaded directly to cloud server.`);
+                alert("🚀 Excel Bulk Sync Completed!");
                 fileInput.value = '';
-            } catch(err) { alert("Verification failed: " + err.message); }
+            } catch(err) { alert("Error parsing Excel: " + err.message); }
         };
         reader.readAsArrayBuffer(fileInput.files[0]);
-    }
-
-    function saveToDatabase(roll, name, batch, testNo, testDate, obtained, total) {
-        if (!database) { console.error("Database connection missing!"); return; }
-        
-        const cleanRoll = roll.toString().trim();
-        const cleanDate = testDate.toString().trim();
-        const uniqueKey = `${cleanRoll}_${cleanDate}`;
-        
-        database.ref('results/' + uniqueKey).set({
-            roll: cleanRoll, name, batch, testNo, testDate: cleanDate, obtained, total
-        });
     }
 
     function toggleDatabaseTable() {
         const box = document.getElementById('allResultsContainer');
         box.style.display = box.style.display === 'none' ? 'block' : 'none';
+        document.getElementById('resultSearchInput').value = '';
+        document.getElementById('testSearchInput').value = '';
+        document.getElementById('dateSearchInput').value = '';
+        filterAdminTable();
+    }
+
+    function togglePdfTable() {
+        const box = document.getElementById('allPdfsContainer');
+        box.style.display = box.style.display === 'none' ? 'block' : 'none';
+        document.getElementById('pdfSearchInput').value = '';
+        filterPdfTable();
     }
 
     function refreshAdminTable() {
         let html = "";
+        let serialNo = 1; 
+        
         Object.keys(studentDatabase).forEach(key => {
             const s = studentDatabase[key];
             html += `<tr>
+                <td><strong>${serialNo++}</strong></td>
                 <td><strong>${s.roll}</strong></td>
                 <td>${s.name}</td>
                 <td>${s.testDate}</td>
                 <td>${s.testNo}</td>
-                <td>${s.obtained}/${s.total}</td>
-                <td><button style="background:#e74c3c; font-size:11px; padding:3px 6px; width:auto;" onclick="deleteDirectKey('${key}')">Delete</button></td>
+                <td><strong style="color:#27ae60;">${s.obtained}</strong></td>
+                <td><strong>${s.total}</strong></td>
+                <td>${s.pdfCode || '-'}</td>
+                <td><button style="background:#e74c3c; color: white; font-size:11px; padding:4px 8px; border:none; border-radius:3px; cursor:pointer;" onclick="deleteDirectKey('${key}')">Delete</button></td>
             </tr>`;
         });
-        document.getElementById('allResultsBody').innerHTML = html || "<tr><td colspan='6' style='text-align:center;'>No Live Data in Online Cloud Server</td></tr>";
+        document.getElementById('allResultsBody').innerHTML = html || "<tr><td colspan='9' style='text-align:center;'>No Data found</td></tr>";
+    }
+
+    function filterAdminTable() {
+        const mainInput = document.getElementById("resultSearchInput").value.toLowerCase().trim();
+        const testInput = document.getElementById("testSearchInput").value.toLowerCase().trim();
+        const dateInput = document.getElementById("dateSearchInput").value.trim(); 
+        
+        const table = document.getElementById("resultsManagementTable");
+        const tr = table.getElementsByTagName("tr");
+
+        let visibleCounter = 1; 
+
+        for (let i = 1; i < tr.length; i++) {
+            const tdSerial = tr[i].getElementsByTagName("td")[0];
+            const tdRoll = tr[i].getElementsByTagName("td")[1];
+            const tdName = tr[i].getElementsByTagName("td")[2];
+            const tdDate = tr[i].getElementsByTagName("td")[3];
+            const tdTest = tr[i].getElementsByTagName("td")[4];
+            
+            if (tdRoll && tdName && tdDate && tdTest) {
+                const txtRoll = tdRoll.textContent || tdRoll.innerText;
+                const txtName = tdName.textContent || tdName.innerText;
+                const txtDate = tdDate.textContent || tdDate.innerText;
+                const txtTest = tdTest.textContent || tdTest.innerText;
+                
+                const matchMain = (!mainInput) || (txtRoll.toLowerCase().indexOf(mainInput) > -1 || txtName.toLowerCase().indexOf(mainInput) > -1);
+                const matchTest = (!testInput) || (txtTest.toLowerCase().indexOf(testInput) > -1);
+                const matchDate = (!dateInput) || (txtDate === dateInput);
+                
+                if (matchMain && matchTest && matchDate) {
+                    tr[i].style.display = "";
+                    if(tdSerial) tdSerial.innerHTML = `<strong>${visibleCounter++}</strong>`;
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }       
+        }
+    }
+
+    function refreshPdfTable() {
+        let html = "";
+        let serialNo = 1; 
+        Object.keys(pdfDatabase).forEach(code => {
+            const file = pdfDatabase[code];
+            html += `<tr>
+                <td><strong>${serialNo++}</strong></td>
+                <td><strong style="color:#d35400;">${code}</strong></td>
+                <td>${file.filename || 'Document.pdf'}</td>
+                <td><button style="background:#e74c3c; color: white; font-size:11px; padding:4px 8px; border:none; border-radius:3px; cursor:pointer;" onclick="deletePdfDocument('${code}')">Delete PDF</button></td>
+            </tr>`;
+        });
+        document.getElementById('allPdfsBody').innerHTML = html || "<tr><td colspan='4' style='text-align:center;'>No PDFs Uploaded in Cloud Server</td></tr>";
+    }
+
+    function filterPdfTable() {
+        const input = document.getElementById("pdfSearchInput");
+        const filter = input.value.toLowerCase().trim();
+        const table = document.getElementById("pdfManagementTable");
+        const tr = table.getElementsByTagName("tr");
+
+        let visibleCounter = 1;
+
+        for (let i = 1; i < tr.length; i++) {
+            const tdSerial = tr[i].getElementsByTagName("td")[0];
+            const tdCode = tr[i].getElementsByTagName("td")[1];
+            const tdName = tr[i].getElementsByTagName("td")[2];
+            
+            if (tdCode || tdName) {
+                const txtCode = tdCode.textContent || tdCode.innerText;
+                const txtName = tdName.textContent || tdName.innerText;
+                
+                if (txtCode.toLowerCase().indexOf(filter) > -1 || txtName.toLowerCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                    if(tdSerial) tdSerial.innerHTML = `<strong>${visibleCounter++}</strong>`;
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }       
+        }
+    }
+
+    function printTableDirectly(tableId, titleText) {
+        const originalTable = document.getElementById(tableId);
+        if (!originalTable) return;
+
+        const printWindow = window.open('', '_blank', 'height=800,width=1100');
+        printWindow.document.write('<html><head><title>' + titleText + '</title>');
+        printWindow.document.write('<style>');
+        printWindow.document.write('body { font-family: sans-serif; padding: 20px; color: #333; }');
+        printWindow.document.write('h2 { text-align: center; color: #1a365d; margin-bottom: 20px; font-size: 24px; border-bottom: 2px solid #1a365d; padding-bottom: 10px; }');
+        printWindow.document.write('table { width: 100%; border-collapse: collapse; margin-top: 10px; }');
+        printWindow.document.write('th, td { border: 1px solid #000; padding: 10px; text-align: left; font-size: 13px; }');
+        printWindow.document.write('th { background-color: #f2f2f2; color: #1a365d; font-weight: bold; }');
+        printWindow.document.write('tr[style*="display: none"] { display: none !important; }'); 
+        printWindow.document.write('.no-print { display: none !important; }'); 
+        printWindow.document.write('</style></head><body>');
+        printWindow.document.write('<h2>' + titleText + '</h2>');
+        printWindow.document.write(originalTable.outerHTML);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.focus();
+        
+        setTimeout(function() {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
     }
 
     function deleteDirectKey(key) {
-        if (!database) return;
-        if(confirm(`Kya aap is record ko Online Database se delete karna chahte hain?`)) {
-            database.ref('results/' + key).remove();
-        }
-    }
-
-    function deleteSpecificRecord() {
-        if (!database) return;
-        const roll = document.getElementById('deleteRollInput').value.trim();
-        const date = document.getElementById('deleteDateInput').value.toString().trim();
-        const key = `${roll}_${date}`;
-        if(studentDatabase[key]) {
-            if(confirm(`Delete Roll: ${roll} Date: ${date} permanently from Cloud Database?`)) {
-                database.ref('results/' + key).remove();
-                document.getElementById('deleteRollInput').value = '';
-                document.getElementById('deleteDateInput').value = '';
-                alert("🎯 Deleted successfully.");
-            }
-        } else { alert("❌ Error: Online cloud database me is combo ka koi record nahi mila!"); }
-    }
-
-    function clearEntireDatabase() {
-        if (!database) return;
-        if(confirm("🚨 WARNING: Kya aap ssch me POORA CLOUD DATABASE saaf karna chahte hain? Everything will be deleted permanently.")) {
-            const reConfirm = prompt("Confirm karne ke liye niche 'DELETE ALL' likhein:");
-            if(reConfirm === "DELETE ALL" || reConfirm === "delete all") {
-                database.ref('results').remove();
-                alert("💥 Cleaned! Online server zero data ho gaya h.");
-            } else { alert("Wrong verification typed."); }
-        }
-    }
-
-    function copyLink() {
-        const linkInput = document.getElementById('generatedLink');
-        linkInput.select();
-        navigator.clipboard.writeText(linkInput.value);
-        alert("📋 Shareable Link copy ho gaya!");
+        if(confirm("Delete this student record?")) database.ref('results/' + key).remove();
     }
 
     function searchResult() {
-        const searchRoll = document.getElementById('searchRoll').value.trim();
-        const searchDate = document.getElementById('searchDate').value.toString().trim();
-        
-        if (!searchRoll || searchRoll.length !== 5 || !searchDate) {
-            alert("⚠️ Valid 5-Digit Roll Number aur Test Date select karein!"); 
-            return;
-        }
-        showResult(searchRoll, searchDate);
+        const roll = document.getElementById('searchRoll').value.trim();
+        const date = document.getElementById('searchDate').value.trim();
+        if(roll.length === 5 && date) showResult(roll, date);
     }
 
     function showResult(roll, date) {
         const resultOutput = document.getElementById('resultOutput');
-        const cleanRoll = roll.toString().trim();
-        const cleanDate = date.toString().trim();
-        const targetKey = `${cleanRoll}_${cleanDate}`;
+        const errBlock = document.getElementById('errorMessageBlock');
+        const pdfArea = document.getElementById('pdfDownloadArea');
+        const targetKey = `${roll}_${date}`;
+
+        errBlock.style.display = 'none';
+        pdfArea.innerHTML = '';
 
         if (studentDatabase[targetKey]) {
             const student = studentDatabase[targetKey];
-
-            let formattedDate = student.testDate;
-            if(student.testDate && student.testDate.includes('-')) {
-                const d = new Date(student.testDate);
-                if(!isNaN(d.getTime())) formattedDate = d.toLocaleDateString('en-GB'); 
-            }
-
+            
             document.getElementById('studentDetailsBlock').innerHTML = `
                 <p><strong>Student Name:</strong> ${student.name}</p>
                 <p><strong>Roll Number:</strong> ${student.roll}</p>
-                <p><strong>Batch:</strong> ${student.batch || 'N/A'}</p>
-                <p><strong>Test Name/No:</strong> ${student.testNo || 'N/A'}</p>
-                <p><strong>Test Date:</strong> ${formattedDate || 'N/A'}</p>
+                <p><strong>Batch:</strong> ${student.batch}</p>
+                <p><strong>Test Name/No:</strong> ${student.testNo}</p>
+                <p><strong>Test Date:</strong> ${student.testDate}</p>
             `;
 
             document.getElementById('marksTableBody').innerHTML = `
-                <tr><td>Obtained Marks Score</td><td><strong style="color:#1a365d; font-size:16px;">${student.obtained}</strong></td></tr>
-                <tr><td>Maximum Total Marks</td><td><strong>${student.total}</strong></td></tr>
+                <tr><td>Obtained Marks</td><td><strong>${student.obtained}</strong></td></tr>
+                <tr><td>Maximum Marks</td><td><strong>${student.total}</strong></td></tr>
             `;
 
-            document.getElementById('generationDate').innerText = new Date().toLocaleDateString('en-GB') + " " + new Date().toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'});
+            if(student.pdfCode) {
+                database.ref('sharedPdf/' + student.pdfCode).once('value').then(snap => {
+                    if(snap.exists()) {
+                        pdfArea.innerHTML = `<a href="${snap.val().url}" target="_blank" class="pdf-btn">📥 Download Linked Test PDF (${student.pdfCode})</a>`;
+                    }
+                });
+            }
+
+            document.getElementById('generationDate').innerText = new Date().toLocaleDateString('en-GB');
             resultOutput.style.display = 'block';
         } else {
-            resultOutput.style.display = 'block';
-            resultOutput.innerHTML = `<p style="color:#721c24; background:#f8d7da; padding:10px; border-radius:4px;">⚠️ Roll Number <strong>${cleanRoll}</strong> का तारीख <strong>${cleanDate}</strong> को कोई ऑनलाइन टेस्ट रिकॉर्ड नहीं मिला।</p>`;
+            resultOutput.style.display = 'none';
+            errBlock.innerHTML = `<p style="color:#721c24; background:#f8d7da; padding:10px; border-radius:4px;">⚠️ No record found.</p>`;
+            errBlock.style.display = 'block';
         }
     }
 </script>
